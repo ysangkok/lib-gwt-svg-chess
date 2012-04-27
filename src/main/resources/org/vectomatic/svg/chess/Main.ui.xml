@@ -25,6 +25,17 @@
 								<g:Button ui:field='undoButton' text="{constants.undo}" />
 								<g:Button ui:field='redoButton' text="{constants.redo}" />
 							</g:HorizontalPanel>
+							<g:Label ui:field="timeLabel" text="{constants.time}" styleName="{style.categoryLabel}" />
+							<g:HorizontalPanel width="100%" >
+							<g:FlowPanel width="50%" >
+							<g:Label ui:field="youPlayerLabel" text="{constants.youPlayer}" styleName="{style.categoryLabel}" />
+							<g:Label ui:field="youTime" />
+							</g:FlowPanel>
+							<g:FlowPanel>
+							<g:Label ui:field="opponentPlayerLabel" text="{constants.opponentPlayer}" styleName="{style.categoryLabel}" />
+							<g:Label ui:field="opponentTime" />
+							</g:FlowPanel>
+							</g:HorizontalPanel>
 						</g:FlowPanel>
 					</g:SimplePanel>
 				</g:stack>

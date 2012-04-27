@@ -26,6 +26,7 @@ public interface ChessConstants extends Constants {
 	public String whitesVsComputer();
 	public String blacksVsComputer();
 	public String computerVsComputer();
+	public String blacksVsXBoard();
 	
 	public String white();
 	public String black();
@@ -62,4 +63,8 @@ public interface ChessConstants extends Constants {
 	public String mt10m();
 	
 	public String about();
+	
+	public String time();
+	public String youPlayer();
+	public String opponentPlayer();
 }

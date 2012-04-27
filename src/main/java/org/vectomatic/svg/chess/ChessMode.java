@@ -40,6 +40,11 @@ public enum ChessMode {
 		public String getDescription() {
 			return ChessConstants.INSTANCE.computerVsComputer();
 		}
+	},
+	blacksVsXBoard {
+		public String getDescription() {
+			return ChessConstants.INSTANCE.blacksVsXBoard();
+		}
 	};
 	public abstract String getDescription();
 }

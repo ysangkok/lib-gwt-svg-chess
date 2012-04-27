@@ -37,7 +37,6 @@ import com.alonsoruibal.chess.Move;
 import com.alonsoruibal.chess.bitboard.BitboardUtils;
 import com.alonsoruibal.chess.movegen.LegalMoveGenerator;
 import com.alonsoruibal.chess.movegen.MoveGenerator;
-import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.dom.client.Style.Cursor;
 import com.google.gwt.event.dom.client.MouseDownEvent;
@@ -48,6 +47,7 @@ import com.google.gwt.event.dom.client.MouseMoveHandler;
 import com.google.gwt.event.dom.client.MouseUpEvent;
 import com.google.gwt.event.dom.client.MouseUpHandler;
 import com.google.gwt.user.client.Command;
+import com.google.gwt.user.client.Window;
 
 /**
  * Class to update the SVG chess board
@@ -273,6 +273,13 @@ public class ChessBoard implements MouseDownHandler, MouseUpHandler, MouseMoveHa
 	}
 	
 	private void onMouseDown_(MouseEvent<?> event) {
+		try {
+		if (main.getMode() == ChessMode.blacksVsComputer || main.getMode() == ChessMode.blacksVsXBoard) {
+			if (board.getTurn()) {
+				Window.alert("Not your turn!");
+				return;
+			}
+		}
 		String algebraic = getAlgebraic(event);
 		if (targetPiece == null) {
 			targetPiece = algebraicToPieces.get(algebraic);
@@ -288,8 +295,10 @@ public class ChessBoard implements MouseDownHandler, MouseUpHandler, MouseMoveHa
 				targetPiece = null;
 			}
 		}
+		} finally {
 		event.stopPropagation();
 		event.preventDefault();
+		}
 	}
 
 	@Override
@@ -302,7 +311,8 @@ public class ChessBoard implements MouseDownHandler, MouseUpHandler, MouseMoveHa
 			if (destIndices.contains(destIndex)) {
 				final int move = Move.getFromString(board, BitboardUtils.index2Algebraic(srcIndex) + BitboardUtils.index2Algebraic(destIndex));
 				board.doMove(move);
-				GWT.log("newItem(" + board.getMoveNumber() +  ")", null);
+				//GWT.log("newItem(" + board.getMoveNumber() +  ")", null);
+				main.maybeSendMove(move);
 				main.addMove();
 				Scheduler.get().scheduleDeferred(new Command() {
 					@Override

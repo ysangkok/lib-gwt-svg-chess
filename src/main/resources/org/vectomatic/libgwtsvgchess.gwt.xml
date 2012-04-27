@@ -8,9 +8,10 @@
   <inherits name="com.alonsoruibal.carballo"/>
   <inherits name="com.google.gwt.widgetideas.User" />
   <inherits name="com.google.gwt.uibinder.UiBinder" />
+  <inherits name="com.google.gwt.websockets.WebSockets" />
 
   <inherits name="com.google.gwt.i18n.I18N" />
-  <extend-property name="locale" values="fr" />
+  <extend-property name="locale" values="en" />
 
   <!-- Inherit the default GWT style sheet.  You can change       -->
   <!-- the theme of your GWT application by uncommenting          -->

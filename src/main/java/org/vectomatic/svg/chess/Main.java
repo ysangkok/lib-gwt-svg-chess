@@ -27,18 +27,22 @@ import com.alonsoruibal.chess.search.SearchEngine;
 import com.alonsoruibal.chess.search.SearchObserver;
 import com.alonsoruibal.chess.search.SearchParameters;
 import com.alonsoruibal.chess.search.SearchStatusInfo;
+import com.google.gwt.core.client.Duration;
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.core.client.Scheduler.ScheduledCommand;
 import com.google.gwt.dom.client.StyleInjector;
 import com.google.gwt.event.dom.client.ChangeEvent;
+import com.google.gwt.event.dom.client.ChangeHandler;
 import com.google.gwt.event.dom.client.ClickEvent;
+import com.google.gwt.i18n.client.NumberFormat;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiFactory;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
 import com.google.gwt.user.client.Element;
+import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.DecoratedPopupPanel;
@@ -108,8 +112,15 @@ public class Main implements EntryPoint, SearchObserver {
 	@UiField
 	HTML about;
 	
+	@UiField
+	Label youTime;
+	@UiField
+	Label opponentTime;
+	
 	DialogBox confirmBox;
 
+	XBoardEngine xBoardEngine;
+	
 	/**
 	 * The Carballo engine
 	 */
@@ -187,6 +198,28 @@ public class Main implements EntryPoint, SearchObserver {
 		return (Window.getClientHeight() - 150);
 	}
 	
+	private boolean isXBoardMode() {
+		return modeListBox.getValue(modeListBox.getSelectedIndex()).equals(ChessMode.blacksVsXBoard.name());
+	}
+	
+	private static String getFormatted(double value, int decimalCount) {
+	    StringBuilder numberPattern = new StringBuilder(
+	            (decimalCount <= 0) ? "" : ".");
+	    for (int i = 0; i < decimalCount; i++) {
+	        numberPattern.append('0');
+	    }
+	    return NumberFormat.getFormat(numberPattern.toString()).format(value);
+	}
+	
+	private static String formatCentiseconds(int ds) {
+		int minutes = ds / (60 * 100);
+		double seconds = Double.valueOf(ds - (minutes * 60 * 100)) / 100;
+		if (minutes < 1) {
+			return getFormatted(seconds,1);
+		}
+		int intseconds = (int) Math.round(seconds);
+		return String.valueOf(minutes) + ":" + (intseconds < 10 ? "0" : "") + String.valueOf(intseconds);
+	}
 	  
 	/**
 	 * GWT entry point
@@ -211,6 +244,64 @@ public class Main implements EntryPoint, SearchObserver {
 				config.setBook(new JSONBook());
 				engine = new SearchEngine(config);
 				engine.setObserver(Main.this);
+				xBoardEngine = new XBoardEngine();
+				xBoardEngine.setInterface(
+						new SuperSearchObserver() {
+							
+							@Override
+							public void info(SearchStatusInfo info) {
+								Main.this.info(info);
+							}
+							
+							@Override
+							public void bestMove(int bestMove, int ponder) {
+								Main.this.bestMove(bestMove,ponder);
+							}
+							
+							@Override
+							public void xBoardUndo() {
+								setMove(board.getMoveNumber()-1);
+							}
+
+							@Override
+							public void xBoardRemove() {
+								setMove(board.getMoveNumber()-2);
+							}
+							
+							@Override
+							public void setFEN(String fen) {
+								fenArea.setText(fen);
+								updateFen(null); // trigger click
+							}
+							
+							@Override
+							public void restart() {
+								Main.this.restart();
+							}
+							
+							@Override
+							public Board getBoard() {
+								return board;
+							}
+
+							@Override
+							public void setClientOpponentTime(int value) {
+								Main.this.setOpponentCentisecondsLeft(value);
+							}
+
+							@Override
+							public void setClientPlayerTime(int value) {
+								Main.this.setPlayerCentisecondsLeft(value);
+							}
+
+							@Override
+							public void enableTime(int minutes) {
+								Main.this.enableTime(minutes);
+							}
+
+						}
+						
+				);
 				board = engine.getBoard();
 		
 				// Instantiate UI
@@ -222,7 +313,20 @@ public class Main implements EntryPoint, SearchObserver {
 				modeListBox.addItem(ChessMode.blacksVsComputer.getDescription(), ChessMode.blacksVsComputer.name());
 				modeListBox.addItem(ChessMode.whitesVsBlacks.getDescription(), ChessMode.whitesVsBlacks.name());
 				modeListBox.addItem(ChessMode.computerVsComputer.getDescription(), ChessMode.computerVsComputer.name());
+				modeListBox.addItem(ChessMode.blacksVsXBoard.getDescription(), ChessMode.blacksVsXBoard.name());
 				modeListBox.setSelectedIndex(0);
+				
+				modeListBox.addDomHandler(new ChangeHandler() {
+					
+					@Override
+					public void onChange(ChangeEvent event) {
+						if (isXBoardMode()) {
+							String response = Window.prompt("XBoard WebSocket host/port:", "192.168.0.5:2023");
+							if (response == null) { modeListBox.setSelectedIndex(2); return; }
+							xBoardEngine.init(response);
+						}
+					}
+				}, ChangeEvent.getType());
 				
 				about.setHTML(ChessConstants.INSTANCE.about());
 				RootLayoutPanel.get().add(binderPanel);
@@ -246,6 +350,45 @@ public class Main implements EntryPoint, SearchObserver {
 				initBox.hide();
 			}
 		});
+	}
+
+	protected void enableTime(int minutes) {
+		otim = time = minutes * 60 * 100;
+	}
+
+	int time, otim;
+	
+	protected void setPlayerCentisecondsLeft(int value) {
+		time = value;
+		youTime.setText(formatCentiseconds(time));
+		startTimer();
+	}
+
+	protected void setOpponentCentisecondsLeft(int value) {
+		otim = value;
+		opponentTime.setText(formatCentiseconds(otim));
+		startTimer();
+	}
+	
+	Timer timeUpdater = new TimeUpdater();
+	Duration moveDuration = new Duration();
+	
+	void startTimer() {
+		timeUpdater.scheduleRepeating(95);
+	}
+	
+	void stopTimer() {
+		timeUpdater.cancel();
+	}
+	
+	class TimeUpdater extends Timer {
+		public void run() {
+			if (board.getTurn()) {
+				opponentTime.setText(formatCentiseconds(otim - moveDuration.elapsedMillis() / 10));
+			} else {
+				youTime.setText(formatCentiseconds(time - moveDuration.elapsedMillis() / 10));
+			}
+		}
 	}
 
 	/**
@@ -336,12 +479,28 @@ public class Main implements EntryPoint, SearchObserver {
 					case computerVsComputer:
 						computerMove();
 						break;
+					case blacksVsXBoard:
+						moveDuration = new Duration();
+						if (board.getTurn()) {
+							executeXBoardMove();
+						}
+						break;
 				}
 				break;
 		}
 
 	}
 	
+	private void executeXBoardMove() {
+		Scheduler.get().scheduleDeferred(new ScheduledCommand() {
+			@Override
+			public void execute() {
+				xBoardEngine.go();
+			}
+			
+		});
+	}
+
 	/**
 	 * Invoked to make the computer play the next move
 	 */
@@ -377,6 +536,7 @@ public class Main implements EntryPoint, SearchObserver {
 	 * Start a new game
 	 */
 	public void restart() {
+		if (getMode() == ChessMode.blacksVsXBoard) stopTimer();
 		chessboard.update(true);
 		lastMoveNumber = 0;
 		historyManager.setMove(0);
@@ -395,7 +555,7 @@ public class Main implements EntryPoint, SearchObserver {
 		chessboard.update(true);
 		nextMove();
 	}
-
+	
 	@UiHandler("modeListBox")
 	public void modeChange(ChangeEvent event) {
 		GWT.log("Main.modeChange(" + modeListBox.getSelectedIndex() + ")", null);
@@ -457,5 +617,11 @@ public class Main implements EntryPoint, SearchObserver {
 		historyManager.setMove(moveNumber);
 		board.undoMove(moveNumber);
 		chessboard.update(true);
+	}
+
+	public void maybeSendMove(int move) {
+		if (isXBoardMode()) {
+			xBoardEngine.sendMove(move);
+		}
 	}
 }

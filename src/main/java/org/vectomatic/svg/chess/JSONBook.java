@@ -23,7 +23,6 @@ import java.util.List;
 import com.alonsoruibal.chess.Board;
 import com.alonsoruibal.chess.Move;
 import com.alonsoruibal.chess.book.Book;
-import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.JsArray;
 import com.google.gwt.core.client.JsArrayInteger;
 import com.google.gwt.user.client.Random;
@@ -100,7 +99,7 @@ public class JSONBook implements Book {
 				int move = Move.getFromString(board, int2MoveString(moveInt));
 				// Add only if it is legal
 				if (board.isMoveLegal(move)) {
-					GWT.log("JSONBook addMove(" + move + ", " + weight + ")", null);
+					//GWT.log("JSONBook addMove(" + move + ", " + weight + ")", null);
 					moves.add(move);
 					weights.add(weight);
 					totalWeight += weight;
